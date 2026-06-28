@@ -71,6 +71,67 @@ At runtime the program:
 6. sends an ESP packet using either UDP+TEE or a raw IP fallback;
 7. waits for the page cache to reflect the injected bytes and then attempts to execute the target binary.
 
+## How DirtyClone works
+
+The exploit is built around a simple idea: the program prepares a crafted ESP/XFRM payload that causes the kernel to decrypt data into a page-cache-backed region of memory, then checks whether the bytes in the target SUID binary have changed.
+
+In practical terms, the program performs the following actions:
+
+- identifies a target file, `/usr/bin/su`, and maps it into memory;
+- prepares a small payload containing shellcode bytes and the necessary ESP metadata;
+- encrypts the payload with AES-CBC so it can be fed into the XFRM/ESP path;
+- sends the packet through the local network stack using either TEE-assisted UDP or a raw IP fallback;
+- monitors the mapped region for the expected bytes to appear;
+- if the bytes appear, it assumes the exploit path has altered the page cache and executes the patched target path.
+
+This is a proof-of-concept flow, not a general-purpose privilege escalation framework. It is intended to demonstrate the exploit mechanism and to help verify whether a target kernel still exposes the vulnerable behavior.
+
+## Dummy implementation example
+
+The following simplified example shows the same concept at a high level:
+
+```c
+#include <stdio.h>
+#include <string.h>
+
+static int dummy_exploit(unsigned char *target_bytes) {
+    unsigned char expected[] = {0x31, 0x0f, 0x05};
+    memcpy(target_bytes, expected, sizeof(expected));
+    return 0;
+}
+
+int main(void) {
+    unsigned char target[16] = {0};
+    dummy_exploit(target);
+    printf("Patched bytes: %02x %02x %02x\n", target[0], target[1], target[2]);
+    return 0;
+}
+```
+
+The real project uses the same principle, but it packages the payload as an ESP/XFRM-style packet and drives the kernel path through the networking stack instead of a simple memory copy.
+
+## Exploitation walkthrough
+
+1. Setup phase
+   - the program creates namespaces to isolate the process environment;
+   - it configures loopback networking so packets stay local.
+
+2. XFRM preparation
+   - the exploit adds XFRM states and policies that tell the kernel how to process ESP traffic;
+   - it also attempts to install a TEE rule so traffic can be redirected through the planned path.
+
+3. Payload construction
+   - the code builds a small plaintext payload containing shellcode-style bytes;
+   - the payload is encrypted with AES-CBC using a static test key.
+
+4. Delivery phase
+   - the program sends the crafted ESP packet over UDP or raw IP;
+   - the kernel processes the packet and, on a vulnerable system, writes the decrypted data back into the page cache region of the target binary.
+
+5. Verification and execution
+   - the code watches the target file’s bytes and checks whether they match the expected shellcode bytes;
+   - if they do, it attempts to execute the target binary and hand control to the injected payload path.
+
 ## Technical details
 
 The implementation includes:
