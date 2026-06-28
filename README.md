@@ -22,7 +22,20 @@ This tool is designed for authorized security testing only. Running it against s
 
 ## Build
 
-Compile the program with:
+Install the required OpenSSL development package first:
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install libssl-dev
+
+# Fedora
+sudo dnf install openssl-devel
+
+# Arch Linux
+sudo pacman -S openssl
+```
+
+Then compile the program with:
 
 ```bash
 gcc -o dirtyclone dirtyclone.c -lcrypto -Wall -O2

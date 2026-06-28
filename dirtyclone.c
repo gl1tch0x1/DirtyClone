@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -118,17 +119,32 @@ static void log_info(const char *fmt, ...) {
     va_end(args);
 }
 
-static void log_ok(const char *msg) {
+static void log_ok(const char *fmt, ...) {
     if (!verbose) return;
-    printf(COLOR_GREEN "[+]" COLOR_RESET " %s\n", msg);
+    va_list args;
+    va_start(args, fmt);
+    printf(COLOR_GREEN "[+]" COLOR_RESET " ");
+    vprintf(fmt, args);
+    printf("\n");
+    va_end(args);
 }
 
-static void log_err(const char *msg) {
-    fprintf(stderr, COLOR_RED "[-]" COLOR_RESET " %s\n", msg);
+static void log_err(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    fprintf(stderr, COLOR_RED "[-]" COLOR_RESET " ");
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    va_end(args);
 }
 
-static void log_warn(const char *msg) {
-    fprintf(stderr, COLOR_YELLOW "[!]" COLOR_RESET " %s\n", msg);
+static void log_warn(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    fprintf(stderr, COLOR_YELLOW "[!]" COLOR_RESET " ");
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    va_end(args);
 }
 
 static void log_banner(void) {
